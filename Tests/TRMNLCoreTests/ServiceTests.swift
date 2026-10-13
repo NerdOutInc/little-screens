@@ -178,7 +178,7 @@ final class ServiceTests: XCTestCase {
     }
 
     func testBMPEncodingAndPreviewOrientation() throws {
-        let image = try TestImage.render(name: "Office OG", code: "ABCD1234", message: "HELLO FROM CODEX", date: Date(timeIntervalSince1970: 1_000_000))
+        let image = try TestImage.render(name: "Office OG", code: "ABCD1234", message: "HELLO FROM CODEX ✅", date: Date(timeIntervalSince1970: 1_000_000))
         XCTAssertEqual(image.bmp.count, 48062)
         XCTAssertEqual(Array(image.bmp.prefix(2)), [0x42, 0x4d])
         func uint(_ offset: Int, _ count: Int) -> Int { (0..<count).reduce(0) { $0 | Int(image.bmp[offset + $1]) << (8 * $1) } }
@@ -192,6 +192,7 @@ final class ServiceTests: XCTestCase {
             for x in stride(from: 0, to: 800, by: 7) {
                 let a = bmp.colorAt(x: x, y: y)!.usingColorSpace(.genericGray)!.whiteComponent
                 let b = png.colorAt(x: x, y: y)!.usingColorSpace(.genericGray)!.whiteComponent
+                XCTAssertTrue(b == 0 || b == 1, "Preview must contain only black/white pixels")
                 XCTAssertEqual(a > 0.5, b > 0.5, "BMP/PNG mismatch at \(x),\(y)")
             }
         }

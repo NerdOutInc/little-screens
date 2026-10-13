@@ -76,6 +76,7 @@ struct Device: Codable {
     var lastImageServed: String?
     var lastImageServedAt: Double?
     var lastLog: String?
+    var dashboard: SavedDashboard?
 }
 
 struct Publication: Codable {
@@ -84,6 +85,11 @@ struct Publication: Codable {
     var title: String
     var createdAt: Double
     var sha256: String
+    var dashboardRevision: Int?
+    var snapshot: DashboardSnapshot?
+    var shownEvents: Int?
+    var omittedEvents: Int?
+    var truncatedTitles: Int?
 }
 
 struct Registry: Codable {
@@ -109,12 +115,12 @@ final class Store {
         try execute("PRAGMA journal_mode = WAL")
         try execute("PRAGMA synchronous = FULL")
         let version = try rows("PRAGMA user_version").first?.first ?? "0"
-        guard version == "0" || version == "1" else {
+        guard ["0", "1", "2"].contains(version) else {
             throw Problem(500, "newer_database", "This database needs a newer AI TRMNL version.")
         }
         try execute("CREATE TABLE IF NOT EXISTS registry (id INTEGER PRIMARY KEY CHECK(id=1), json TEXT NOT NULL)")
         try execute("CREATE TABLE IF NOT EXISTS receipts (id TEXT PRIMARY KEY, digest TEXT NOT NULL, result TEXT NOT NULL)")
-        try execute("PRAGMA user_version = 1")
+        try execute("PRAGMA user_version = 2")
     }
 
     deinit { sqlite3_close(db) }

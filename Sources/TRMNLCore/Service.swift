@@ -21,9 +21,10 @@ struct Tool {
     var description: String
     var readOnly: Bool
     var fields: [String: String]
+    var objects: [String: [String: Any]] = [:]
     var descriptor: [String: Any] {
         ["name": name, "description": description, "annotations": ["readOnlyHint": readOnly],
-         "inputSchema": ["type": "object", "properties": fields.mapValues { ["type": $0] },
+         "inputSchema": ["type": "object", "properties": fields.reduce(into: [String: [String: Any]]()) { result, field in result[field.key] = objects[field.key] ?? ["type": field.value] },
                          "required": fields.keys.sorted(), "additionalProperties": false]]
     }
     func validate(_ input: [String: Any]) throws {
@@ -34,6 +35,8 @@ struct Tool {
                       !value.unicodeScalars.contains(where: { CharacterSet.controlCharacters.contains($0) }) else {
                     throw Problem(400, "invalid_arguments", "\(key) must be a nonempty single-line string, at most 200 characters.")
                 }
+            } else if type == "object" {
+                guard input[key] is [String: Any] else { throw Problem(400, "invalid_arguments", "\(key) must be a JSON object.") }
             } else {
                 guard let value = input[key] as? NSNumber, CFGetTypeID(value) != CFBooleanGetTypeID(),
                       value.doubleValue >= 0, value.doubleValue <= 1_000_000_000,
@@ -71,6 +74,10 @@ public final class TRMNLService {
         Tool(name: "start_pairing", description: "Open a 10-minute window for OG device enrollment. Use the pairing revision from get_server_info and a new UUID request_id. Returns physical Wi-Fi instructions.", readOnly: false, fields: ["expected_revision": "integer", "request_id": "string"]),
         Tool(name: "confirm_device", description: "Confirm the pending physical device identified by its code and assign a name (40 characters maximum). Closes pairing. Use the device's current revision and a UUID request_id.", readOnly: false, fields: ["device_id": "string", "name": "string", "expected_revision": "integer", "request_id": "string"]),
         Tool(name: "publish_test_screen", description: "Render and publish an 800x480 1-bit BMP test screen for one active OG. Supply a short message (70 characters maximum), current device revision, and UUID request_id. Returns a committed receipt and PNG preview URL.", readOnly: false, fields: ["device_id": "string", "message": "string", "expected_revision": "integer", "request_id": "string"]),
+        Tool(name: "get_device_profile", description: "Read a device's saved dashboard preferences, exact template definition, current revision, and last published data. Use saved sources and preferences for future updates.", readOnly: true, fields: ["device_id": "string"]),
+        Tool(name: "save_dashboard", description: "Save user-approved weather/agenda preferences for one active device. This does not change the display. Use a UUID request_id and current device revision. Routine content refreshes should not change preferences.", readOnly: false, fields: ["device_id": "string", "profile": "object", "expected_revision": "integer", "request_id": "string"], objects: ["profile": DashboardProfile.schema]),
+        Tool(name: "render_dashboard", description: "Stage an immutable weather/agenda screen using the saved profile and fresh source data. No external fetching happens here. Return PNG preview, image ID, and event overflow counts. Use null for unknown weather values; dates need explicit offsets except all-day YYYY-MM-DD exclusive end dates. Inspect preview before publish_screen.", readOnly: false, fields: ["device_id": "string", "snapshot": "object", "expected_revision": "integer", "request_id": "string"], objects: ["snapshot": DashboardSnapshot.schema]),
+        Tool(name: "publish_screen", description: "Publish a previously rendered image to its owning device after inspecting the preview. Rejects an image from another device or an outdated profile. Supply image_id, current device revision, and a UUID request_id.", readOnly: false, fields: ["device_id": "string", "image_id": "string", "expected_revision": "integer", "request_id": "string"]),
         Tool(name: "disconnect_device", description: "Retire a device and revoke API/image access without resetting the physical device or deleting its saved records. Use its current revision and UUID request_id; only call when the user requests disconnection.", readOnly: false, fields: ["device_id": "string", "expected_revision": "integer", "request_id": "string"])
     ]
 
@@ -172,14 +179,21 @@ public final class TRMNLService {
     private func invoke(_ tool: Tool, _ input: [String: Any]) throws -> [String: Any] {
         switch tool.name {
         case "get_server_info":
-            return ["version": "0.1.0", "milestone": "pair one OG and publish a test image", "agent_url": configuration.agentURL,
+            return ["version": "0.2.0", "milestone": "saved weather and agenda dashboards", "agent_url": configuration.agentURL,
                     "device_server_url": configuration.deviceURL, "pairing": pairingStatus(), "refresh_seconds": configuration.refreshSeconds,
                     "storage": "SQLite + Keychain + image files", "next_step": "List devices. If your OG is not registered, start_pairing, then follow the Help page's physical connection steps.",
                     "last_device_error": lastDeviceError,
-                    "not_implemented": ["custom dashboards", "hourly scheduling", "launch at login"]]
+                    "templates": [DashboardRenderer.definition], "not_implemented": ["arbitrary templates", "hourly scheduling", "launch at login"]]
         case "list_devices": return ["devices": registry.devices.values.sorted { $0.mac < $1.mac }.map(summary)]
         case "get_pairing_status": return pairingStatus()
         case "get_device_status": return summary(try device(input["device_id"] as! String))
+        case "get_device_profile":
+            let device = try device(input["device_id"] as! String)
+            var result = summary(device)
+            result["dashboard"] = try device.dashboard.map(encoded) ?? NSNull()
+            result["template_definition"] = DashboardRenderer.definition
+            if let snapshot = registry.publications[device.currentImage]?.snapshot { result["last_snapshot"] = try encoded(snapshot) }
+            return result
         case "get_write_receipt": return try store.receipt(input["request_id"] as! String) ?? ["found": false]
         default: break
         }
@@ -190,6 +204,7 @@ public final class TRMNLService {
         do {
             let expected = (input["expected_revision"] as! NSNumber).intValue
             var result: [String: Any]
+            var staged: Publication?
             if tool.name == "start_pairing" {
                 guard expected == registry.pairingRevision else { throw Problem(409, "revision_conflict", "Read the current pairing revision before trying again.") }
                 registry.pairingUntil = now().timeIntervalSince1970 + 600
@@ -213,6 +228,29 @@ public final class TRMNLService {
                     guard message.count <= 70 else { throw Problem(400, "message_too_long", "Use a message of at most 70 characters.") }
                     let publication = try makeImage(device: device, title: device.name, message: message)
                     registry.publications[publication.id] = publication; device.currentImage = publication.id
+                case "save_dashboard":
+                    guard device.state == "active" else { throw Problem(409, "device_not_active", "Confirm this device first.") }
+                    let profile = try decoded(DashboardProfile.self, input["profile"]!)
+                    try profile.validate()
+                    device.dashboard = SavedDashboard(revision: (device.dashboard?.revision ?? 0) + 1, profile: profile)
+                case "render_dashboard":
+                    guard device.state == "active", let dashboard = device.dashboard else { throw Problem(409, "dashboard_required", "Save a dashboard for this active device first.") }
+                    let snapshot = try decoded(DashboardSnapshot.self, input["snapshot"]!)
+                    let rendered = try DashboardRenderer.render(profile: dashboard.profile, snapshot: snapshot, now: now())
+                    var publication = try saveImage(device: device, title: dashboard.profile.location + " weather + agenda", image: (rendered.bmp, rendered.png))
+                    publication.dashboardRevision = dashboard.revision; publication.snapshot = snapshot
+                    publication.shownEvents = rendered.shown; publication.omittedEvents = rendered.omitted; publication.truncatedTitles = rendered.truncated
+                    registry.publications[publication.id] = publication; staged = publication
+                case "publish_screen":
+                    guard device.state == "active", let dashboard = device.dashboard,
+                          let publication = registry.publications[input["image_id"] as! String],
+                          publication.deviceID == device.id, publication.dashboardRevision == dashboard.revision else {
+                        throw Problem(409, "image_conflict", "Render an image for this device's current saved profile first.")
+                    }
+                    guard now().timeIntervalSince1970 - publication.createdAt < 1800 else {
+                        throw Problem(409, "render_expired", "This preview is over 30 minutes old. Render again so agenda filtering and freshness markers stay current.")
+                    }
+                    device.currentImage = publication.id
                 case "disconnect_device":
                     guard device.state != "disconnected" else { throw Problem(409, "already_disconnected", "This device is already disconnected.") }
                     device.state = "disconnected"; device.nonce = randomToken()
@@ -221,9 +259,16 @@ public final class TRMNLService {
                 device.revision += 1
                 registry.devices[device.id] = device
                 result = summary(device)
+                if let dashboard = device.dashboard { result["dashboard_revision"] = dashboard.revision }
+                if let staged {
+                    result["rendered"] = ["image_id": staged.id, "preview_url": configuration.agentURL + "/previews/\(staged.id).png",
+                                          "sha256": staged.sha256, "shown_event_rows": staged.shownEvents!, "omitted_event_rows": staged.omittedEvents!, "truncated_titles": staged.truncatedTitles!]
+                }
                 if tool.name == "disconnect_device" {
                     result["next_step"] = "Reopen the device's Wi-Fi portal and choose another server or its official hosted-server option. This operation does not erase its displayed image or reset its Wi-Fi."
-                } else { result["next_step"] = "Publish a test screen if needed. Press the rear button briefly to request content, or wait for the next check-in. Ask the user to confirm the visible code and message." }
+                } else if tool.name == "render_dashboard" { result["next_step"] = "Inspect rendered.preview_url, then publish_screen with the returned image_id and device revision." }
+                else if tool.name == "save_dashboard" { result["next_step"] = "Collect sources using the saved profile, then render_dashboard. Saving preferences does not publish a screen." }
+                else { result["next_step"] = "Press the rear button briefly to request content, or wait for the next check-in. Ask the user to confirm what is visible." }
             }
             result["request_id"] = requestID; result["committed"] = true
             pruneHistory()
@@ -235,6 +280,10 @@ public final class TRMNLService {
 
     private func makeImage(device: Device, title: String, message: String) throws -> Publication {
         let image = try TestImage.render(name: title, code: device.code, message: message, date: now())
+        return try saveImage(device: device, title: title, image: image)
+    }
+
+    private func saveImage(device: Device, title: String, image: (bmp: Data, png: Data)) throws -> Publication {
         let id = UUID().uuidString.lowercased()
         for (extensionName, data) in [("bmp", image.bmp), ("png", image.png)] {
             let path = imageDirectory.appendingPathComponent(id + "." + extensionName)

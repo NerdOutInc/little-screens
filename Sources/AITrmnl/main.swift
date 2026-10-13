@@ -20,7 +20,7 @@ struct LaunchOptions {
             if argument == "--ephemeral" { ephemeral = true; continue }
             if argument == "--help" {
                 print("""
-                AI TRMNL 0.1.0 — a small local server with good reading comprehension.
+                AI TRMNL 0.2.0 — a small local server with good reading comprehension.
                 Usage: ai-trmnl [--headless] [--device-host IPv4] [--device-port 8787]
                                 [--agent-port 8788] [--refresh-seconds 60] [--data-dir PATH]
                                 [--ephemeral]
@@ -120,7 +120,7 @@ do {
     }
     agent.onFailure = failure; firmware.onFailure = failure
     agent.start(); firmware.start()
-    print("AI TRMNL 0.1.0\nHelp / agent: \(configuration.agentURL)/\nTRMNL custom server: \(configuration.deviceURL)\nRefresh: \(options.refresh)s\nData: \(options.directory.path)")
+    print("AI TRMNL 0.2.0\nHelp / agent: \(configuration.agentURL)/\nTRMNL custom server: \(configuration.deviceURL)\nRefresh: \(options.refresh)s\nData: \(options.directory.path)")
     fflush(stdout)
     if options.headless { dispatchMain() }
     let app = NSApplication.shared

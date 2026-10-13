@@ -65,7 +65,7 @@ def main():
                         raise RuntimeError("Isolated server did not start")
                     time.sleep(0.1)
             contracts = json.loads(request(agent_url + "/api/tools"))["tools"]
-            assert len(contracts) == 9
+            assert len(contracts) == 13
             info = tool("get_server_info")
             write("start_pairing", info["pairing"]["revision"])
             headers = {"ID": "02:00:00:00:00:01", "FW-Version": "simulator", "Width": "800", "Height": "480"}
@@ -96,7 +96,7 @@ def main():
                 raise AssertionError("Disconnected device still has access")
             except urllib.error.HTTPError as error:
                 assert error.code == 401
-            print("PASS: nine tools; pair, confirm, publish, fetch, hash, receipt, and revoke over HTTP.")
+            print("PASS: thirteen tools; pair, confirm, publish, fetch, hash, receipt, and revoke over HTTP.")
         finally:
             process.terminate()
             try:

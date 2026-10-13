@@ -2,7 +2,7 @@
 
 A small macOS menu bar app that serves Codex-generated screens to TRMNL devices on your local network. Codex does the thinking. The displays sit quietly and look informed.
 
-**Status: working pairing-and-test prototype (0.1.0).** The native app, Help page, nine WebMCP tools, SQLite registry, and OG test-image renderer are implemented. Codex paired a physical OG running firmware 1.8.17, published a test image through WebMCP, and the user confirmed the matching code and “HELLO FROM CODEX” on its display. Simulated HTTP delivery also passes. Saved custom dashboards, login startup, and hourly automation are later milestones.
+**Status: weather-and-agenda prototype (0.2.0).** The native app, Help page, thirteen WebMCP tools, saved per-device preferences, and deterministic OG renderer are implemented. Codex gathered live Weather Underground data and all accessible Google calendars, saved a dashboard, inspected its preview, and published it through WebMCP. The user confirmed the first dashboard appeared on a physical OG running firmware 1.8.17; physical feedback prompted larger agenda text. Login startup, arbitrary layouts, and hourly automation are later milestones.
 
 ## Run on your Mac
 
@@ -15,7 +15,7 @@ open ".build/AI TRMNL.app"
 
 The menu bar icon has **Help**, **Copy Agent URL**, and **Quit AI TRMNL**. Help opens your default browser to the starter page at `http://localhost:8788/`. Give Codex the prompt on that page:
 
-> Open http://localhost:8788/ in your built-in browser. Read the agent instructions and discover its WebMCP tools. Help me pair one TRMNL OG, confirm which physical device it is, and publish a test screen. Walk me through each physical step and verify what appears on the display.
+> Open http://localhost:8788/ in your built-in browser. Read the agent instructions and discover its WebMCP tools. Help me set up or update my TRMNL display. Discover existing devices and saved dashboard preferences first. Walk me through any physical steps and verify what appears on the display.
 
 The regular browser can display Help without WebMCP support. Codex uses its built-in browser to discover and invoke the tools. The app's help page is the entry point; users do not need this repository to complete setup.
 
@@ -59,6 +59,8 @@ To disconnect, ask Codex to disconnect the selected device. The app revokes its 
 - WebMCP registration through `document.modelContext.registerTool()` with a thin same-origin HTTP adapter.
 - Timed pairing, physical code matching, friendly names, independent device identities, and credential revocation/re-pairing.
 - Deterministic CoreGraphics/CoreText test screens: **800 × 480, 1-bit BMP3**, 48,062 bytes, plus a local PNG preview. Each publication gets an immutable unique filename so firmware fetches changed content.
+- Saved weather/agenda profiles: source URL, location, timezone, units, calendar scope, lookahead, instructions, and template revision.
+- Weather on the left; all-calendar agenda grouped by local day on the right. Separate rendering, preview inspection, and publication through WebMCP.
 - SQLite persistence, Keychain installation secret, atomic publication records, revision checks, and durable request receipts for safe retries.
 - Authenticated firmware routes, bounded diagnostics, check-in timestamps, and image-response timestamps.
 
@@ -70,6 +72,10 @@ To disconnect, ask Codex to disconnect the selected device. The app revokes its 
 | `start_pairing` | Open enrollment for ten minutes. |
 | `confirm_device` | Confirm one physical device and name it; closes enrollment. |
 | `publish_test_screen` | Render and publish a short message for one active OG; return a preview and receipt. |
+| `get_device_profile` | Read saved preferences, template definition, and the last published source snapshot. |
+| `save_dashboard` | Save preferences for one active device without changing its display. |
+| `render_dashboard` | Stage an image from structured weather/calendar data; return a preview and overflow counts. |
+| `publish_screen` | Activate an inspected image for its owning device and current profile revision. |
 | `get_device_status` | Read publication, check-in, image-response, and diagnostic state. |
 | `get_write_receipt` | Recover the result of a write after an uncertain response. |
 | `disconnect_device` | Retire a registration and revoke its credentials. |
@@ -77,6 +83,18 @@ To disconnect, ask Codex to disconnect the selected device. The app revokes its 
 Every write requires a new UUID `request_id` and the current `expected_revision`. Retry an uncertain write with **the same ID and identical arguments**, or look up its receipt. Reusing an ID with different input or publishing against a stale revision returns a conflict. The running page provides the exact schemas.
 
 A publication receipt proves the server committed an image. An image-response timestamp means the server prepared its response, not that the physical display rendered it. The agent must ask the user what is visible before claiming a successful hardware test.
+
+## Build and refresh a dashboard
+
+Tell Codex which device to update, its weather source, and how to use your calendars. The built-in `weather-agenda-v1` template uses Fahrenheit/mph, a prominent current temperature and condition icon, high today/low tonight, wind, precipitation with its explicit forecast period, and **current UV only**. Missing numbers render as dashes. Weather observations older than 90 minutes or a forecast for another date are labeled stale.
+
+Codex reads all accessible Google calendars, including shared and subscribed calendars, through its browser or connected Calendar tools. The Mac app has no Google or weather integration. Supply stable event IDs, exact titles, start/end times, all-day flags, and coverage information. Timed events use explicit timezone offsets; all-day events use dates with exclusive end dates. If a search result omits all-day dates, read the full event before rendering. Canceled or declined invitations should be excluded; shared invitations should only be deduplicated when their common identity is known.
+
+The agenda includes ongoing and upcoming events, grouped by the saved timezone, with all-day events first. It uses 18-pixel event titles and 14-pixel time labels, calendar numbers with a footer legend, deliberate title truncation when necessary, and a count of event rows beyond the screen. Source timestamps and unavailable-calendar warnings remain visible. Agenda data older than two hours is labeled stale. Locations are retained in the source snapshot but are not displayed in this compact template.
+
+For each update, Codex reads `get_device_profile`, gathers fresh data, calls `render_dashboard`, inspects the returned PNG, and calls `publish_screen`. Only a preference change needs `save_dashboard`; ordinary refreshes preserve the saved layout and instructions. The template definition and last published snapshot are readable from the app, so a fresh chat can continue from the Help page. Rendering leaves the current screen active. Publication rejects another device's image, an outdated profile revision, or a preview older than 30 minutes.
+
+Unknown weather values and failed calendar coverage must be explicit. When preserving previous observations after a source failure, keep their original timestamps. The printed timestamp remains on the e-ink display if updates stop; the physical pixels cannot acquire a new stale label without another render and device refresh. No hourly task has been created yet.
 
 ## Delivery and storage
 
@@ -108,7 +126,7 @@ Local state lives outside Git:
   server.lock          # Prevents concurrent processes using the same store
 ```
 
-The small prototype registry is a Codable JSON record inside SQLite; registry changes and write receipts commit in one transaction. It remembers device identity/name, credentials' derivation nonce, firmware metadata, state/revision, current image, and recent diagnostic timestamps. Dashboard and template tables are not implemented yet.
+The small prototype registry is a Codable JSON record inside SQLite; registry changes and write receipts commit in one transaction. It remembers device identity/name, credentials' derivation nonce, firmware metadata, state/revision, current image, recent diagnostics, each device's saved dashboard/profile revision, and recent publication snapshots. Built-in template code is versioned with the app. Schema version 2 reads existing version 1 registries; older app builds refuse the upgraded database to avoid losing dashboard fields.
 
 A master secret is stored in the macOS Keychain, scoped to the data directory. API and image credentials are derived per device; raw credentials are not returned by agent tools. Moving a database to a different storage path or Mac requires migrating its Keychain secret or re-pairing devices. There is no backup/export UI yet.
 
@@ -125,17 +143,17 @@ node --input-type=module --check < Sources/TRMNLCore/Web/tools.js
 python3 scripts/smoke-test.py
 ```
 
-The Swift suite covers registration, expiry, restart recovery, idempotent retries, conflicts, three-device isolation, disconnection/re-pairing, local origin/session boundaries, log redaction, HTTP framing/limits, and BMP/PNG dimensions and orientation. The Python smoke test starts an isolated loopback server and exercises the real HTTP path; it does not access household devices or Keychain.
+The Swift suite covers registration, expiry, restart recovery, idempotent retries, conflicts, three-device isolation, disconnection/re-pairing, local origin/session boundaries, log redaction, HTTP framing/limits, BMP/PNG dimensions and matching black/white pixels, staged publication, profile-revision protection, timezone/all-day boundaries, dense agenda overflow, and invalid source data. The Python smoke test starts an isolated loopback server and exercises the real HTTP path; it does not access household devices or Keychain.
 
-On October 13, 2026, Codex's built-in browser discovered all nine tools and invoked pairing, confirmation, and test publication. A simulated OG downloaded the published bitmap through the actual device listener, and its hash matched the receipt. A physical OG running firmware 1.8.17 fetched the published test screen; the user confirmed its code, device name, and message. All 12 Swift tests and the HTTP smoke test pass. See [verification notes](docs/verification.md).
+On October 13, 2026, Codex's built-in browser discovered all thirteen tools and invoked the dashboard profile, render, and publish workflow against the running native app. The user confirmed both a test image and the first weather/calendar dashboard on a physical OG. All 17 Swift tests and the HTTP smoke test pass. See [verification notes](docs/verification.md).
 
 Code map: `Sources/AITrmnl` is the executable/menu shell; `Sources/TRMNLCore` contains the HTTP server, protocol/tools, storage, renderer, and served web resources. `scripts/build-app.sh` packages the same executable and resources into a local `.app`.
 
 ## Next milestones
 
 1. Pair the second physical OG, publish different content to each, and confirm both retain their identities/images after restart. The first OG test is complete; multi-device persistence is already covered by simulated tests.
-2. Add saved dashboard definitions and deterministic reusable templates. Store each device's source URLs, instructions, timezone, units, privacy choices, stale-data behavior, and exact layout revision in SQLite. A fresh Codex chat should reproduce the dashboard from the local page alone.
-3. Have Codex gather information through its browser, render structured content with the saved template, inspect the preview, and publish. Keep data gathering out of the Mac app. Shared observations are fine; device layouts, publications, and failures remain independent.
+2. Refine the weather/agenda template from physical-screen feedback and add other layouts as requested. Verify that a fresh Codex chat can refresh a saved dashboard from the local page alone.
+3. Exercise source failures and recovery across multiple devices. Shared observations are fine; device layouts, publications, and failures remain independent.
 4. Add login startup using Apple's service-management API and a distributable app. Startup means a logged-in user session, not a pre-login daemon.
 5. After manual dashboard updates work, schedule hourly Codex runs. Keep the Mac awake and test browser sign-ins, permissions, restarts, stale sources, overlapping runs, and unattended operation. Do not invent calendar events or weather when gathering fails; preserve the last valid screen and follow the saved stale-data policy.
 
