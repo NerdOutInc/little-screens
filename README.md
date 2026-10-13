@@ -2,7 +2,7 @@
 
 A small macOS menu bar app that serves Codex-generated screens to TRMNL devices on your local network. Codex does the thinking. The displays sit quietly and look informed.
 
-**Status: weather-and-agenda prototype (0.2.0).** The native app, Help page, thirteen WebMCP tools, saved per-device preferences, and deterministic OG renderer are implemented. Codex gathered live Weather Underground data and all accessible Google calendars, saved a dashboard, inspected its preview, and published it through WebMCP. The user confirmed the first dashboard appeared on a physical OG running firmware 1.8.17; physical feedback prompted larger agenda text. Login startup, arbitrary layouts, and hourly automation are later milestones.
+**Status: weather-and-agenda prototype (0.2.0).** The native app, Help page, thirteen WebMCP tools, saved per-device preferences, and deterministic OG renderer are implemented. Codex gathered live Weather Underground data and all accessible Google calendars, saved a dashboard, inspected its preview, and published it through WebMCP. The user confirmed the dashboard appeared on a physical OG running firmware 1.8.17 and that the enlarged agenda text is readable. Login startup, arbitrary layouts, and hourly automation are later milestones.
 
 ## Run on your Mac
 
