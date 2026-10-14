@@ -1,0 +1,73 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <meta name="description" content="Let Codex help you set up your own TRMNL-compatible display. One prompt, a weather starter, and a little personality.">
+    <meta name="theme-color" content="#f4f3ee">
+    <meta name="referrer" content="no-referrer">
+    <title>Little Screens — Get started</title>
+    <link rel="stylesheet" href="./styles.css">
+    <script src="./copy.js" defer></script>
+  </head>
+  <body>
+    <div class="page">
+      <header>
+        <a class="wordmark" href="./">Little Screens<span aria-hidden="true">.</span></a>
+        <a class="repo-link" href="https://github.com/NerdOutInc/little-screens">View on GitHub <span aria-hidden="true">↗</span></a>
+      </header>
+
+      <main>
+        <div class="intro">
+          <p class="eyebrow">A LITTLE DISPLAY. A LITTLE PERSONALITY.</p>
+          <h1>Your screen.<br><span>Your kind of useful.</span></h1>
+          <p class="lede">Weather, your day ahead, or something entirely your own.<br class="desktop-break"> Start with one prompt. Codex will help with the rest.</p>
+        </div>
+
+        <div class="setup">
+          <section aria-labelledby="prompt-heading">
+            <h2 id="prompt-heading"><span class="step" aria-hidden="true">01</span> Copy this into Codex</h2>
+            <div class="prompt-card">
+              <p id="setup-prompt" tabindex="0">Use https://github.com/NerdOutInc/little-screens to help me set up my own TRMNL device. Read the repository's AGENTS.md and docs/setup.md.</p>
+              <div class="copy-row">
+                <button id="copy-prompt" type="button" hidden>Copy instructions</button>
+                <span id="copy-status" role="status" aria-live="polite"></span>
+                <noscript>Select the text above and copy it into Codex desktop.</noscript>
+              </div>
+            </div>
+            <p class="next-step">Paste it into the <strong>Codex desktop app</strong>. Codex will walk you through creating your own Site, connecting your display, and getting a weather screen running. Then make it yours, with Codex’s help.</p>
+            <p class="aside">No need to read the whole manual. That’s Codex’s homework.</p>
+          </section>
+
+          <section class="requirements" aria-labelledby="requirements-heading">
+            <h2 id="requirements-heading"><span class="step" aria-hidden="true">02</span> What you’ll need</h2>
+            <ul>
+              <li>
+                <h3>A TRMNL-compatible device</h3>
+                <p>Wi-Fi and firmware that lets you use a custom server.</p>
+              </li>
+              <li>
+                <h3>An always-on computer</h3>
+                <p>Keep it awake, connected to the internet, and running Codex desktop for regular updates.</p>
+              </li>
+              <li>
+                <h3>Codex desktop + the Sites plugin</h3>
+                <p>An account with access to both. Codex creates your Site and updates its images from your computer.</p>
+              </li>
+            </ul>
+            <p class="small">Codex can help install Node.js 22.13+ and Python 3.10+, the setup tools. Google Calendar is optional.</p>
+            <details>
+              <summary>Tested hardware & compatibility</summary>
+              <p>Our local prototype was tested on <strong>TRMNL OG, firmware 1.8.17</strong>. The current renderer produces 800 × 480 images. Other devices may need adjustments; other models and pairing with the hosted Site are not yet verified.</p>
+            </details>
+          </section>
+        </div>
+      </main>
+
+      <footer>
+        <span>Little Screens <span aria-hidden="true">/</span> Nerd Out Inc.</span>
+        <span>Less scrolling. More glancing.</span>
+      </footer>
+    </div>
+  </body>
+</html>

@@ -2,6 +2,12 @@
 
 The reusable source lives in `site/`; deployment-specific files stay local. Install the current Sites plugin and follow its skill instructions for publishing. This repository doesn't embed a personal Site ID.
 
+## Public getting-started page
+
+The small static page in `website/` is published to GitHub Pages by `.github/workflows/pages.yml` when that directory or the workflow changes on `main`. The workflow uploads only `website/`. It does not publish the ChatGPT Site, runtime data, or household screens.
+
+Preview it with `python3 -m http.server 8790 --bind 127.0.0.1 --directory website`, then open `http://localhost:8790/`. Keep the prompt identical to README.md and docs/setup.md. Verify the Copy button writes that exact text and that the page fits narrow screens. Browser clipboard failures should select the prompt and show manual-copy instructions.
+
 ## Local preview
 
 ```sh

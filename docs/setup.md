@@ -2,7 +2,7 @@
 
 A person can start with this short prompt:
 
-> Use https://github.com/brianpattison/ai-trmnl to help me set up my own TRMNL device. Read the repository's AGENTS.md and docs/setup.md.
+> Use https://github.com/NerdOutInc/little-screens to help me set up my own TRMNL device. Read the repository's AGENTS.md and docs/setup.md.
 
 That prompt starts the complete onboarding workflow below; the user does not need to copy additional instructions. For a new installation:
 
@@ -20,6 +20,8 @@ Clone this repository into the user's chosen workspace, or use their existing ch
 For a new owner, create a new Site. Do not infer ownership from a repository URL. The reusable template deliberately has no real project ID or credentials. Create `.runtime/` for private state and keep it out of Git. Prepare Python 3.10+ and install `updater/requirements.txt` in a local virtual environment; prepare the Site's Node dependencies using the Sites helper or `npm install` in `site/`.
 
 The updater runs on the user's always-on computer with Codex desktop, not a Site cloud scheduler. Use the computer and timezone already established by the user; ask about a different updater machine only when that choice is unresolved. Other desktop operating systems have not yet been runtime-tested even though the renderer is portable Python.
+
+The hardware requirement is a TRMNL-compatible device with custom-server support, not necessarily an OG. Our local prototype was tested on TRMNL OG firmware 1.8.17. Establish the user's model from context or ask when needed for pairing. Verify its firmware routes and image requirements; the current renderer and server require 800×480 grayscale PNGs. Other models may need code changes. The button timings in this guide apply to the tested OG.
 
 ## 2. Guess a starter location; do not block on a question
 

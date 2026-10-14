@@ -1,18 +1,18 @@
-# AI TRMNL
+# Little Screens
 
 Give Codex this repository. Get a small screen with a personality.
 
-AI TRMNL is a reusable ChatGPT Site that stores instructions and images for your TRMNL OG displays. An always-on computer running the **Codex desktop app** gathers information, generates images, and uploads them to your Site. The displays wake up, fetch their own images, and go back to their very demanding nap schedule.
+Little Screens is a reusable ChatGPT Site that stores instructions and images for TRMNL-compatible displays. An always-on computer running the **Codex desktop app** gathers information, generates images, and uploads them to your Site. The displays wake up, fetch their own images, and go back to their very demanding nap schedule.
 
 ## Start here
 
-Copy this into Codex desktop:
+Visit the [getting-started page](https://nerdoutinc.github.io/little-screens/) for the requirements and a **Copy instructions** button, or copy this into Codex desktop:
 
-> Use https://github.com/brianpattison/ai-trmnl to help me set up my own TRMNL device. Read the repository's AGENTS.md and docs/setup.md.
+> Use https://github.com/NerdOutInc/little-screens to help me set up my own TRMNL device. Read the repository's AGENTS.md and docs/setup.md.
 
 You need:
 
-- A **TRMNL OG**, Wi-Fi, and firmware supporting custom servers. The original prototype was physically verified on OG firmware 1.8.17.
+- A **TRMNL-compatible device**, Wi-Fi, and firmware supporting custom servers. The original local prototype was physically verified on **TRMNL OG firmware 1.8.17**. The current renderer outputs 800×480 images; other devices may need adjustments and are not yet verified.
 - Your own account with **Codex desktop and the Sites plugin** available.
 - A dedicated computer that stays awake with Codex running. There is no cloud scheduler in this design.
 - Node.js 22.13+ for building the Site, and Python 3.10+ for the portable renderer. Codex helps prepare these.
@@ -58,6 +58,7 @@ The Site never receives your Google password or signs in to weather services. Co
 | `docs/updater.md` | Local recurring-update procedure and prompt template |
 | `docs/api.md` | API contract, revisions, retries and image requirements |
 | `docs/development.md` | Local development, checks and publication workflow |
+| `website/` | Public getting-started page, published through GitHub Pages |
 | `legacy/macos/` | Historical native prototype; not required by the Site |
 
 **Keep household data out of Git.** Local tokens, actual deployment IDs, images, source snapshots, and connection files belong in ignored `.runtime/` or ignored local environment files. This repository contains reusable code and instructions, not anyone's dashboard data. Generated Site publishing checkouts have their own deployment manifest.
@@ -66,7 +67,7 @@ The Site never receives your Google password or signs in to weather services. Co
 
 The Site implementation is privately deployed and its hosted firmware/image routes have passed protocol checks. The earlier native prototype and its weather/calendar layout were verified on a physical OG; physical pairing with the hosted replacement is still pending. The portable updater and new-owner onboarding remain under development. See [verification](docs/verification.md) for current evidence.
 
-Supported output is **800×480, 1-bit or 2-bit grayscale PNG, at most 90,000 bytes**. Other TRMNL models and dimensions are not yet supported. The starter renderer draws a weather screen without ImageGen. The companion template combines generated scene art with deterministic weather/calendar text.
+Supported output is **800×480, 1-bit or 2-bit grayscale PNG, at most 90,000 bytes**. Other TRMNL-compatible models have not been verified, and devices needing other dimensions require renderer/server changes. The starter renderer draws a weather screen without ImageGen. The companion template combines generated scene art with deterministic weather/calendar text.
 
 The Site stores images and serves firmware requests; it does not generate content itself. No cloud scheduled task is created. A publication receipt proves that an image was saved, and a response timestamp proves only that the server prepared an image response—not that the device displayed it.
 

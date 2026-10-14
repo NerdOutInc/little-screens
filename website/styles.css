@@ -1,0 +1,80 @@
+@font-face {
+  font-family: Atkinson;
+  src: url("./assets/AtkinsonHyperlegible-Regular.ttf") format("truetype");
+  font-weight: 400;
+  font-display: swap;
+}
+@font-face {
+  font-family: Atkinson;
+  src: url("./assets/AtkinsonHyperlegible-Bold.ttf") format("truetype");
+  font-weight: 700;
+  font-display: swap;
+}
+:root {
+  color-scheme: light;
+  --paper: #f4f3ee;
+  --ink: #20241f;
+  --muted: #62695e;
+  --line: #d6d9cf;
+  --green: #526448;
+}
+* { box-sizing: border-box; }
+body { margin: 0; background: var(--paper); color: var(--ink); font: 18px/1.5 Atkinson, sans-serif; }
+.page { width: min(1112px, 100%); padding: 0 48px; margin: auto; }
+header { min-height: 94px; display: flex; align-items: center; justify-content: space-between; gap: 20px; border-bottom: 1px solid var(--line); }
+a { color: inherit; text-underline-offset: 4px; }
+.wordmark { font-size: 22px; font-weight: 700; text-decoration: none; letter-spacing: -.5px; }
+.wordmark span { color: var(--green); }
+.repo-link { display: inline-flex; gap: 10px; align-items: center; min-height: 44px; color: var(--muted); font-size: 15px; text-decoration: none; }
+.repo-link:hover { color: var(--ink); text-decoration: underline; }
+.intro { padding: 52px 0 38px; }
+.eyebrow { color: var(--green); font: 11px/1.5 ui-monospace, monospace; letter-spacing: 1.9px; margin: 0 0 20px; }
+h1 { font: 400 clamp(44px, 5.8vw, 68px)/1.04 Georgia, serif; letter-spacing: -2.5px; margin: 0 0 22px; }
+h1 span { color: var(--green); }
+.lede { margin: 0; color: var(--muted); font-size: 19px; line-height: 1.55; }
+.setup { display: grid; grid-template-columns: 1.2fr 1fr; gap: 64px; padding: 32px 0 54px; border-top: 1px solid var(--line); }
+h2 { font-size: 20px; letter-spacing: -.4px; line-height: 1.3; margin: 0 0 24px; }
+.step { display: inline-block; color: var(--green); font: 12px ui-monospace, monospace; margin-right: 12px; vertical-align: 2px; }
+.prompt-card { background: #fffefa; border: 1px solid #b9c0ae; border-radius: 8px; padding: 26px; box-shadow: 0 3px 0 #e3e6da; }
+#setup-prompt { font: 16px/1.75 ui-monospace, "SFMono-Regular", Consolas, monospace; margin: 0; overflow-wrap: anywhere; }
+.copy-row { display: flex; flex-wrap: wrap; align-items: center; gap: 12px 18px; margin-top: 26px; }
+button { min-height: 46px; border: 1px solid var(--ink); border-radius: 5px; padding: 10px 18px; background: var(--ink); color: #fffefa; font: 700 16px Atkinson, sans-serif; cursor: pointer; }
+button:hover { background: #3c4737; }
+button:disabled { cursor: wait; opacity: .75; }
+[hidden] { display: none !important; }
+button, a { -webkit-tap-highlight-color: transparent; }
+:focus-visible { outline: 3px solid #6c844f; outline-offset: 5px; }
+#copy-status { color: var(--green); font-size: 14px; }
+#copy-status:empty { display: none; }
+.next-step { color: var(--muted); font-size: 17px; margin: 24px 0 12px; }
+.next-step strong { color: var(--ink); }
+.aside { color: var(--green); font-size: 15px; margin: 0; }
+.requirements ul { list-style: none; margin: 0; padding: 0; }
+.requirements li { padding: 0 0 18px; margin: 0 0 18px; border-bottom: 1px solid var(--line); }
+.requirements h3 { font-size: 18px; margin: 0 0 4px; }
+.requirements p { color: var(--muted); font-size: 16px; line-height: 1.5; margin: 0; }
+.requirements .small { font-size: 14px; margin: 0 0 12px; }
+details { font-size: 14px; }
+summary { color: var(--green); min-height: 44px; padding: 10px 0; cursor: pointer; text-decoration: underline; text-underline-offset: 4px; }
+.requirements details p { font-size: 14px; padding: 4px 0 0; }
+footer { display: flex; justify-content: space-between; gap: 16px; padding: 24px 0 30px; border-top: 1px solid var(--line); color: var(--muted); font-size: 13px; }
+footer span span { margin: 0 6px; color: #8b947e; }
+@media (max-width: 760px) {
+  .page { padding: 0 24px; }
+  header { min-height: 80px; }
+  .wordmark { font-size: 20px; }
+  .repo-link { font-size: 14px; gap: 5px; }
+  .intro { padding: 38px 0 30px; }
+  h1 { letter-spacing: -1.7px; }
+  .lede { font-size: 18px; }
+  .desktop-break { display: none; }
+  .setup { grid-template-columns: 1fr; gap: 40px; padding: 28px 0 36px; }
+  .prompt-card { padding: 22px; }
+  .requirements { border-top: 1px solid var(--line); padding-top: 30px; }
+  footer { flex-wrap: wrap; gap: 8px; font-size: 12px; }
+}
+@media (max-width: 360px) {
+  .page { padding: 0 18px; }
+  .eyebrow { letter-spacing: 1px; }
+  .prompt-card { padding: 18px; }
+}
