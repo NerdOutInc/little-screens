@@ -1,5 +1,12 @@
 # Verification status
 
+## Little Screens landing page — October 14, 2026
+
+- The repository was transferred to `NerdOutInc/little-screens` and made public. The active project name, setup prompts, and management Site branding are now Little Screens.
+- The [GitHub Pages workflow](https://github.com/NerdOutInc/little-screens/actions/runs/38619933470) successfully published the static `website/` directory. The live HTML, CSS, and JavaScript matched the committed source byte-for-byte.
+- The live Copy button was tested by pasting into a separate text field: it copied the exact short setup prompt with the new repository URL. The confirmation and expandable compatibility note worked in the browser.
+- The page was visually inspected at desktop width and 390px mobile width, with no horizontal overflow on mobile. Hardware wording distinguishes TRMNL-compatible devices from the physically tested OG firmware 1.8.17 and preserves the hosted-pairing verification limit.
+
 ## Hosted replacement — October 14, 2026
 
 - Site source builds; TypeScript checks pass.
