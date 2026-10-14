@@ -1,0 +1,24 @@
+{
+  "profile": {
+    "template": "weather-starter-v1",
+    "location": "Your suggested city",
+    "timezone": "America/Chicago",
+    "location_inferred": true
+  },
+  "snapshot": {
+    "weather": {
+      "observed_at": "2026-01-01T12:00:00-06:00",
+      "forecast_date": "2026-01-01",
+      "condition": "Weather unavailable",
+      "temperature": null,
+      "high": null,
+      "low": null,
+      "wind_speed": null,
+      "wind_direction": "",
+      "precipitation_chance": null,
+      "precipitation_period": "today",
+      "uv_current": null,
+      "note": "Example input only. Replace the city, timestamps, and readings with source-backed data."
+    }
+  }
+}

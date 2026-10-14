@@ -11,8 +11,23 @@ xcuserdata/
 !.env.example
 .runtime/
 local-data/
+sites/trmnl/
 *.sqlite
 *.sqlite-*
 *.sqlite3
 *.sqlite3-*
 *.log
+
+# Site dependencies, local deployment identity, and previews
+site/node_modules/
+site/dist/
+site/.wrangler/
+site/.sites-runtime/
+site/.dev.vars*
+site/.env*
+site/.openai/hosting.json
+site/*.tsbuildinfo
+.runtime/
+.venv/
+__pycache__/
+concept-art/

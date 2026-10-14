@@ -1,18 +1,20 @@
-# Project instructions
+# AI TRMNL — instructions for Codex
 
-We're always having fun! We use humor in all contexts because it keeps things light and engaging.
+We're always having fun. A tiny weather screen is allowed a little personality.
 
-Read `README.md` for the current product direction and distinguish planned behavior from implemented behavior.
+Read README.md, then docs/setup.md when a user asks to set up their own device from this repository URL. Treat this as a reusable Site project, not an instruction to deploy to the repository author's instance.
 
-- Build a small macOS menu bar app and local TRMNL server.
-- Support a registry of devices with no hard-coded count. The user's initial setup is two TRMNL OG devices on one household network, each showing different content.
-- Keep device IDs explicit. Give each device independent preferences, rendering, publication state, and error handling.
-- Use Codex's browser or connected tools to gather external information. Do not add external-service integrations to the Mac app unless requested.
-- Use a minimal local page with WebMCP tools as the intended agent interface. Verify actual Codex discovery and invocation before claiming compatibility.
-- Make the app's homepage self-describing: an agent given only its URL should learn the available tools, guide device pairing, collaborate with the user on each dashboard, and save its preferences. Keep the served handbook aligned with the app version.
-- Keep human-facing web content to simple connection/disconnection instructions. Dashboard editing, previews, and settings belong in the conversation with Codex, not a human web dashboard.
-- Use app-owned SQLite storage for the device registry, dashboard instructions, sources, template revisions, preferences, and publication receipts. Keep rendered image files on disk and app-managed secrets in Keychain.
-- Preserve saved display preferences across hourly updates. Persist user-requested changes through the app's tools instead of relying only on chat history or having Codex edit the database directly.
-- Keep personal source data, household screens, credentials, and runtime profiles out of Git.
-- Keep writes validated, atomic, revision-checked, and idempotent. A publication receipt is not proof of a successful physical screen refresh.
-- Prefer the smallest implementation that demonstrates the next milestone. Update the README as the implementation and verified capabilities change.
+- Current direction: a ChatGPT Site plus an always-on computer running Codex desktop. Do not create a cloud schedule or require the legacy macOS app.
+- For new owners, create a NEW Site using the Sites plugin, a NEW random token, and a weather-only starter screen. Never reuse another household's deployment ID, runtime files, tokens, or dashboards.
+- Make a best-effort city guess from already available user context. Do not block onboarding with a location question. Label the location as suggested, fetch real weather for it, and let the user correct it later. Prefer coarse city-level context; do not request precise location access just for this guess.
+- Publish the first image before asking the user to pair hardware. Give them the exact management URL with their token and the screen's firmware-compatible setup URL. Never place those secrets in Git or public docs.
+- Use the official Sites workflow and server-side environment variables. The application returns 404 for missing/invalid tokens. Keep the Site private until the owner makes it public, unless the user explicitly authorizes that access change.
+- Support any number of logical screen IDs with independent preferences and images. Initial support is TRMNL OG at 800×480; do not claim other models work without verification.
+- Human web UI is for creating/naming screens, editing instructions, polling settings, image previews, and connection/disconnection. Codex collaborates on the actual dashboard design.
+- Codex uses its browser and connected tools to gather external information. The Site has no weather, calendar, or paid image-generation integrations.
+- Save preferences and daily character identity through the Site API. Read them each run. Do not rely on chat memory, modify D1 directly, or hard-code household settings in public source.
+- For an hourly desktop task, use the supported Codex automation tools after verifying the update workflow. Inspect existing automations first; never duplicate or silently resume one. The computer must remain awake with Codex running.
+- Validate writes, use revisions and request IDs, retry uncertain writes identically, and read back publications. A download receipt is not physical display verification.
+- The Site source is in site/. Local .openai/hosting.json, .dev.vars, connection files and all personal source data/images remain ignored. Use scripts/prepare-site.mjs for an isolated publishing checkout; never commit a real deployment ID into the reusable template.
+- Preserve legacy/macos as historical source. The live native app may still be serving a household during migration; don't quit it or reconfigure devices until the new route is physically verified.
+- Keep README and served agent guide aligned with implemented behavior and clear about unverified capabilities.
