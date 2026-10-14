@@ -1,12 +1,23 @@
 # First-run playbook for Codex
 
-A person may provide only the repository URL and “Help me set up my own TRMNL device.” Carry the process through to a visible first screen. Ask only for information that is truly necessary. Use the Sites plugin and its current skill instructions for creation, secrets, packaging, publication and tool schemas.
+A person can start with this short prompt:
+
+> Use https://github.com/brianpattison/ai-trmnl to help me set up my own TRMNL device. Read the repository's AGENTS.md and docs/setup.md.
+
+That prompt starts the complete onboarding workflow below; the user does not need to copy additional instructions. For a new installation:
+
+1. Create the user's own ChatGPT Site using the Sites plugin, generate their own access token, and seed a weather-only starter screen. Never reuse another owner's Site or credentials.
+2. Make your best guess at their city from available context and label it as a suggestion. Do not stop to ask for a location. Fetch real weather for that city and publish the starter image.
+3. Give the user their private management link with its token, then walk them through connecting their TRMNL using the screen's setup URL.
+4. After the user confirms the physical screen works, help them customize it and set up hourly updates on their always-on computer running Codex desktop.
+
+Carry the process through to a visible first screen. Ask only for information that is truly necessary. Use the Sites plugin and its current skill instructions for creation, secrets, packaging, publication and tool schemas. Follow the ownership, access, verification, and scheduling steps below throughout setup.
 
 ## 1. Establish ownership and runtime
 
 Clone this repository into the user's chosen workspace, or use their existing checkout. Read AGENTS.md. Confirm from context whether this is a new installation or an existing household update. Discover an existing local connection and its Site before creating anything; reuse it only when it belongs to this user and they intend to continue that installation.
 
-For a new owner, create a new Site. Do not infer ownership from a repository URL. The public template deliberately has no real project ID or credentials. Create `.runtime/` for private state and keep it out of Git. Prepare Python 3.10+ and install `updater/requirements.txt` in a local virtual environment; prepare the Site's Node dependencies using the Sites helper or `npm install` in `site/`.
+For a new owner, create a new Site. Do not infer ownership from a repository URL. The reusable template deliberately has no real project ID or credentials. Create `.runtime/` for private state and keep it out of Git. Prepare Python 3.10+ and install `updater/requirements.txt` in a local virtual environment; prepare the Site's Node dependencies using the Sites helper or `npm install` in `site/`.
 
 The updater runs on the user's always-on computer with Codex desktop, not a Site cloud scheduler. Use the computer and timezone already established by the user; ask about a different updater machine only when that choice is unresolved. Other desktop operating systems have not yet been runtime-tested even though the renderer is portable Python.
 
@@ -30,7 +41,7 @@ Prepare an isolated publishing checkout from the reusable source:
 node scripts/prepare-site.mjs --project-id ACTUAL_RETURNED_ID --destination .runtime/site-publish
 ```
 
-This creates the deployment's `.openai/hosting.json` in the private checkout. It does not alter the public template. Use the Sites plugin's required credential-on-hidden-stdin Git/build/package workflow from that checkout, then publish privately. Preserve its Git history for future updates. Do not put the source repository credential into a shell command or a file.
+This creates the deployment's `.openai/hosting.json` in the private checkout. It does not alter the reusable template. Use the Sites plugin's required credential-on-hidden-stdin Git/build/package workflow from that checkout, then publish privately. Preserve its Git history for future updates. Do not put the source repository credential into a shell command or a file.
 
 Store the application connection in `.runtime/site-connection.json`:
 

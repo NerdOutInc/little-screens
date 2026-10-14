@@ -8,7 +8,7 @@ AI TRMNL is a reusable ChatGPT Site that stores instructions and images for your
 
 Copy this into Codex desktop:
 
-> Use https://github.com/brianpattison/ai-trmnl to help me set up my own TRMNL device. Read the repository's AGENTS.md and docs/setup.md. Create my own ChatGPT Site using the Sites plugin, generate my own access token, and seed a weather-only starter screen. Make your best guess at my city from available context and label it as a suggestion; don't stop to ask me for a location. Fetch real weather for that city, publish the starter image, give me my private management link with its token, and walk me through connecting my TRMNL. After I confirm the physical screen works, help me customize it and set up hourly updates on this always-on computer. Never reuse another owner's Site or credentials.
+> Use https://github.com/brianpattison/ai-trmnl to help me set up my own TRMNL device. Read the repository's AGENTS.md and docs/setup.md.
 
 You need:
 
