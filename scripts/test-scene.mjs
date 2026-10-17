@@ -1,0 +1,51 @@
+// Exercise the real API against disposable local Worker/D1/R2 bindings.
+import assert from 'node:assert/strict';
+import { createRequire } from 'node:module';
+import { resolve } from 'node:path';
+import { readFileSync } from 'node:fs';
+const root = resolve(process.argv[2] || 'site');
+const require = createRequire(root + '/package.json');
+const { build } = require('esbuild');
+const { Miniflare } = require('miniflare');
+const bundle = await build({ stdin: { contents: "import {handleAPI} from './server/service.ts'; export default {fetch:r=>handleAPI(r,new URL(r.url).pathname.slice(5).split('/'))};", resolveDir: root }, bundle: true, write: false, format: 'esm', platform: 'browser', external: ['cloudflare:workers'] });
+const token = 'local-scene-test-only-not-a-real-token';
+const mf = new Miniflare({ modules: true, script: bundle.outputFiles[0].text, compatibilityDate: '2026-05-15', d1Databases: ['DB'], r2Buckets: ['BUCKET'], bindings: { SITE_TOKEN: token, SITE_ORIGIN: 'http://localhost' } });
+try {
+  const db = await mf.getD1Database('DB');
+  await db.exec('CREATE TABLE registry(id TEXT PRIMARY KEY,version INTEGER NOT NULL DEFAULT 0,data TEXT NOT NULL); CREATE TABLE checkins(id TEXT PRIMARY KEY,seen TEXT,image_sent TEXT,publication_id TEXT);');
+  const image = readFileSync(process.argv[3]).toString('base64');
+  const secondImage = readFileSync(process.argv[4]).toString('base64');
+  assert.notEqual(image, secondImage);
+  const call = async (path, body) => {
+    const response = await mf.dispatchFetch('http://localhost/api/' + path, { method: body ? 'POST' : 'GET', headers: { Authorization: 'Bearer ' + token, 'Content-Type': 'application/json' }, body: body ? JSON.stringify(body) : undefined });
+    return { status: response.status, body: await response.json() };
+  };
+  const saved = await call('save_screen', { request_id: crypto.randomUUID(), expected_revision: 0, name: 'Scene test', instructions: 'Test', refresh_seconds: 900, active: true });
+  assert.equal(saved.status, 200);
+  const id = saved.body.id;
+  let payload = { request_id: crypto.randomUUID(), expected_revision: 1, id, date: '2026-10-17', character: 'Frog', identity: 'A cheerful frog', condition: 'sunny', phase: 'morning', prompt: 'Test art', png_base64: image };
+  const first = await call('save_scene', payload); assert.equal(first.status, 200);
+  payload = { ...payload, request_id: crypto.randomUUID(), expected_revision: 2, phase: 'afternoon', png_base64: secondImage };
+  const pose = await call('save_scene', payload); assert.equal(pose.status, 200);
+  assert.equal(pose.body.scene.reference_key, first.body.scene.key);
+  assert.notEqual(pose.body.scene.key, first.body.scene.key);
+  payload = { ...payload, request_id: crypto.randomUUID(), expected_revision: 3, character: 'Goat', identity: 'A cheerful goat' };
+  assert.equal((await call('save_scene', payload)).status, 409);
+  assert.equal((await call('save_scene', { ...payload, replace_daily_character: true })).status, 400);
+  assert.equal((await call('save_scene', { ...payload, replacement_reason: 'Owner requested a replacement' })).status, 400);
+  payload = { ...payload, replace_daily_character: true, replacement_reason: 'Owner requested a replacement' };
+  const replacement = await call('save_scene', payload); assert.equal(replacement.status, 200);
+  assert.equal(replacement.body.revision, 4);
+  assert.equal(replacement.body.scene.reference_key, replacement.body.scene.key);
+  assert.notEqual(replacement.body.scene.reference_key, first.body.scene.reference_key);
+  assert.equal(replacement.body.scene.replacement.reason, payload.replacement_reason);
+  assert.deepEqual(await call('save_scene', payload), replacement);
+  assert.equal((await call('save_scene', { ...payload, replacement_reason: 'Different request' })).status, 409);
+  assert.equal((await call('save_scene', { ...payload, request_id: crypto.randomUUID() })).status, 409);
+  assert.equal((await call('save_scene', { ...payload, request_id: crypto.randomUUID(), expected_revision: 4, date: '2026-10-16' })).status, 409);
+  const nextDay = await call('save_scene', { ...payload, request_id: crypto.randomUUID(), expected_revision: 4, date: '2026-10-18', character: 'Dog', identity: 'A cheerful dog', replace_daily_character: false, replacement_reason: undefined });
+  assert.equal(nextDay.status, 200);
+  assert.equal(nextDay.body.scene.reference_key, nextDay.body.scene.key);
+  assert.equal(nextDay.body.scene.replacement, undefined);
+  console.log('PASS: daily identity, pose continuity, explicit replacement, reference reset, reason, retries, conflicts, date protection and next-day rotation');
+} finally { await mf.dispose(); }

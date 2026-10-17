@@ -31,3 +31,6 @@ site/*.tsbuildinfo
 .venv/
 __pycache__/
 concept-art/
+
+# Local disposable Worker test cache
+.wrangler/

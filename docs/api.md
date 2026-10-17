@@ -19,7 +19,7 @@ All writes need a UUID `request_id` and integer `expected_revision`. New screens
 
 `save_screen`: name, instructions, refresh_seconds (60–86400), active boolean, optional profile JSON. Unknown/extra top-level fields are rejected. Setting active=false revokes firmware reads but preserves the record.
 
-`save_scene`: id, date (YYYY-MM-DD), character, identity, condition, phase (morning/afternoon/evening/night), prompt, png_base64. First image for a local date remains the reference; changing character/identity on the same day is rejected. Renderers additionally verify local date, phase and condition before drawing live data.
+`save_scene`: id, date (YYYY-MM-DD), character, identity, condition, phase (morning/afternoon/evening/night), prompt, png_base64. First image for a local date remains the reference; changing character/identity on the same day is rejected by default. For an explicit owner request only, send `replace_daily_character: true` and a nonempty `replacement_reason` (up to 500 characters). Both fields are required together. This pins the replacement image as the new reference, records `scene.replacement.reason` and `.at`, and retains revision/idempotency protection. Scheduled refreshes must not use this override. Renderers additionally verify local date, phase and condition before drawing live data.
 
 `publish_screen`: id, png_base64, metadata (JSON, max 16KB). PNG validation checks signature, dimensions, 1/2-bit grayscale format, chunk checksums, bounded decompression and pixel scanline structure. Only IHDR, IDAT and IEND are accepted. Use updater/render.py to normalize input. Images must be 800×480 and at most 90,000 bytes.
 

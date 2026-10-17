@@ -21,7 +21,7 @@ const digest = async (input: string | Uint8Array) => Array.from(new Uint8Array(a
 const textField = (length: number) => z.string().trim().min(1).max(length);
 const objectValue = z.record(z.unknown());
 type Publication = { id: string; key: string; sha256: string; created_at: string; instructions_revision: number; metadata: Record<string, unknown> };
-type Scene = { date: string; character: string; identity: string; condition: string; phase: string; prompt: string; key: string; reference_key: string };
+type Scene = { date: string; character: string; identity: string; condition: string; phase: string; prompt: string; key: string; reference_key: string; replacement?: { reason: string; at: string } };
 export type Screen = { id: string; name: string; instructions: string; refresh_seconds: number; revision: number; active: boolean; created_at: string; updated_at: string; publication?: Publication; publications?: Publication[]; scene?: Scene; profile: Record<string, unknown> };
 type State = { screens: Record<string, Screen>; receipts: Record<string, { digest: string; result: unknown }> };
 async function load() {
@@ -120,14 +120,15 @@ async function write(action: string, raw: unknown) {
     });
   }
   if (action === 'save_scene') {
-    const a = z.object({ ...writeBase, id: idSchema, date: z.string().regex(/^\d{4}-\d{2}-\d{2}$/), character: textField(60), identity: textField(500), condition: textField(45), phase: z.enum(['morning', 'afternoon', 'evening', 'night']), prompt: textField(3000), png_base64: z.string().max(120000) }).strict().parse(raw);
+    const a = z.object({ ...writeBase, id: idSchema, date: z.string().regex(/^\d{4}-\d{2}-\d{2}$/), character: textField(60), identity: textField(500), condition: textField(45), phase: z.enum(['morning', 'afternoon', 'evening', 'night']), prompt: textField(3000), png_base64: z.string().max(120000), replace_daily_character: z.boolean().optional(), replacement_reason: textField(500).optional() }).strict().refine(a => Boolean(a.replace_daily_character) === Boolean(a.replacement_reason), { message: 'Explicit replacement requires both replace_daily_character=true and replacement_reason' }).parse(raw);
     const bytes = await png(a.png_base64), key = 'scenes/' + a.id + '/' + await digest(bytes) + '.png';
     await bucket().put(key, bytes, { httpMetadata: { contentType: 'image/png' } });
     return change(a.request_id, { action, ...a }, s => {
       const screen = expect(s, a.id, a.expected_revision), previous = screen.scene;
       if (previous && a.date < previous.date) throw new Problem(409, 'Cannot replace a newer daily scene');
-      if (previous?.date === a.date && (previous.character !== a.character || previous.identity !== a.identity)) throw new Problem(409, 'Preserve the character identity for the whole day');
-      screen.scene = { date: a.date, character: a.character, identity: a.identity, condition: a.condition, phase: a.phase, prompt: a.prompt, key, reference_key: previous?.date === a.date ? previous.reference_key : key };
+      const sameDay = previous?.date === a.date;
+      if (sameDay && (previous.character !== a.character || previous.identity !== a.identity) && !a.replace_daily_character) throw new Problem(409, 'Preserve the character identity for the whole day unless the owner explicitly requests a replacement');
+      screen.scene = { date: a.date, character: a.character, identity: a.identity, condition: a.condition, phase: a.phase, prompt: a.prompt, key, reference_key: sameDay && !a.replace_daily_character ? previous.reference_key : key, ...(a.replace_daily_character ? { replacement: { reason: a.replacement_reason!, at: now() } } : sameDay && previous.replacement ? { replacement: previous.replacement } : {}) };
       screen.revision += 1; screen.updated_at = now();
       return { committed: true, id: a.id, revision: screen.revision, scene: screen.scene };
     });
