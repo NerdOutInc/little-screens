@@ -1,6 +1,7 @@
 import { env } from 'cloudflare:workers';
 import { z } from 'zod';
 import { GUIDE, DEFAULT_INSTRUCTIONS } from './guide';
+import { IMAGE_GRACE_MS, pruneHistory, protectedImageKeys, ownedImageKey, type Receipt } from './retention';
 
 export const privateHeaders = { 'Cache-Control': 'private, no-store', 'Referrer-Policy': 'no-referrer', 'X-Content-Type-Options': 'nosniff', 'X-Robots-Tag': 'noindex, nofollow' };
 export const json = (value: unknown, status = 200) => Response.json(value, { status, headers: privateHeaders });
@@ -23,7 +24,7 @@ const objectValue = z.record(z.unknown());
 type Publication = { id: string; key: string; sha256: string; created_at: string; instructions_revision: number; metadata: Record<string, unknown> };
 type Scene = { date: string; character: string; identity: string; condition: string; phase: string; prompt: string; key: string; reference_key: string; replacement?: { reason: string; at: string } };
 export type Screen = { id: string; name: string; instructions: string; refresh_seconds: number; revision: number; active: boolean; created_at: string; updated_at: string; publication?: Publication; publications?: Publication[]; scene?: Scene; profile: Record<string, unknown> };
-type State = { screens: Record<string, Screen>; receipts: Record<string, { digest: string; result: unknown }> };
+type State = { screens: Record<string, Screen>; receipts: Record<string, Receipt>; cleanup?: { lease?: string; until?: number; cursor?: string } };
 async function load() {
   await db().prepare("INSERT OR IGNORE INTO registry(id, version, data) VALUES('main', 0, ?)").bind(JSON.stringify({ screens: {}, receipts: {} })).run();
   const row = await db().prepare("SELECT version, data FROM registry WHERE id = 'main'").first<{version: number; data: string}>();
@@ -34,17 +35,58 @@ async function change(requestId: string, input: unknown, fn: (s: State) => unkno
   const hash = await digest(JSON.stringify(input));
   for (let attempt = 0; attempt < 5; attempt++) {
     const { version, state } = await load();
+    if ((state.cleanup?.until ?? 0) > Date.now()) throw new Problem(503, 'Storage maintenance in progress; retry identical request');
+    pruneHistory(state, Date.now());
     const receipt = state.receipts[requestId];
     if (receipt) { if (receipt.digest !== hash) throw new Problem(409, 'Request ID was already used with different input'); return receipt.result; }
     if (Object.keys(state.receipts).length >= 10000) throw new Problem(507, 'Receipt storage full; maintenance required before further writes');
     const result = fn(state);
-    state.receipts[requestId] = { digest: hash, result };
+    state.receipts[requestId] = { digest: hash, result, created_at: now() };
     const encoded = JSON.stringify(state);
     if (new TextEncoder().encode(encoded).length > 1500000) throw new Problem(507, 'Registry storage full');
     const write = await db().prepare("UPDATE registry SET data = ?, version = version + 1 WHERE id = 'main' AND version = ?").bind(encoded, version).run();
     if (write.meta.changes === 1) return result;
   }
   throw new Problem(409, 'Concurrent update; retry identical request');
+}
+// A short registry lease prevents publication commits while unreferenced objects
+// are deleted. Uploads which race the lease cannot commit; an identical retry
+// uploads their content again before committing. Cleanup never touches live keys.
+async function maintainStorage() {
+  const lease = crypto.randomUUID(), time = Date.now();
+  let locked: State | undefined, stats: ReturnType<typeof pruneHistory> | undefined;
+  for (let attempt = 0; attempt < 5; attempt++) {
+    const { version, state } = await load();
+    if ((state.cleanup?.until ?? 0) > time) throw new Problem(503, 'Storage maintenance in progress; retry identical request');
+    stats = pruneHistory(state, time);
+    state.cleanup = { ...state.cleanup, lease, until: time + 60000 };
+    const write = await db().prepare("UPDATE registry SET data = ?, version = version + 1 WHERE id = 'main' AND version = ?").bind(JSON.stringify(state), version).run();
+    if (write.meta.changes === 1) { locked = state; break; }
+  }
+  if (!locked || !stats) throw new Problem(409, 'Concurrent maintenance; retry identical request');
+  let cursor = locked.cleanup?.cursor, deleted = 0, scanned = 0;
+  try {
+    const protectedKeys = protectedImageKeys(locked);
+    const page = await bucket().list({ limit: 500, ...(cursor ? { cursor } : {}) });
+    scanned = page.objects.length;
+    const obsolete = page.objects.filter(item => ownedImageKey(item.key) && !protectedKeys.has(item.key) && item.uploaded.getTime() < time - IMAGE_GRACE_MS);
+    for (let n = 0; n < obsolete.length; n += 100) {
+      // D1's lease is bounded; abort deletion before it can expire.
+      if (Date.now() >= time + 45000) throw new Problem(503, 'Image cleanup will resume on the next update');
+      const keys = obsolete.slice(n, n + 100).map(item => item.key);
+      await bucket().delete(keys); deleted += keys.length;
+    }
+    cursor = page.truncated ? page.cursor : undefined;
+  } finally {
+    for (let attempt = 0; attempt < 5; attempt++) {
+      const { version, state } = await load();
+      if (state.cleanup?.lease !== lease) break;
+      state.cleanup = cursor ? { cursor } : {};
+      const write = await db().prepare("UPDATE registry SET data = ?, version = version + 1 WHERE id = 'main' AND version = ?").bind(JSON.stringify(state), version).run();
+      if (write.meta.changes === 1) break;
+    }
+  }
+  return { ...stats, images_deleted: deleted, images_scanned: scanned, cleanup_pending: Boolean(cursor), receipt_retention_hours: 24, image_grace_hours: 1 };
 }
 const idSchema = z.string().regex(/^[a-f0-9]{12}$/);
 const writeBase = { request_id: z.string().uuid(), expected_revision: z.number().int().min(0) };
@@ -96,6 +138,11 @@ async function png(input: string) {
   return bytes;
 }
 async function write(action: string, raw: unknown) {
+  if (action === 'maintain_storage') {
+    const a = z.object({ request_id: z.string().uuid() }).strict().parse(raw);
+    const result = await maintainStorage();
+    return change(a.request_id, { action, ...a }, () => ({ committed: true, ...result }));
+  }
   if (action === 'save_screen') {
     const a = z.object({ ...writeBase, id: idSchema.optional(), name: textField(80), instructions: textField(12000), refresh_seconds: z.number().int().min(60).max(86400), active: z.boolean(), profile: objectValue.optional() }).strict().parse(raw);
     const id = a.id ?? crypto.randomUUID().replaceAll('-', '').slice(0, 12);
@@ -114,7 +161,7 @@ async function write(action: string, raw: unknown) {
       const screen = expect(s, a.id, a.expected_revision);
       if (!screen.active) throw new Problem(409, 'Screen is disconnected');
       const publication: Publication = { id: crypto.randomUUID(), key, sha256, created_at: now(), instructions_revision: screen.revision, metadata: a.metadata };
-      screen.publications = [...(screen.publications ?? []), publication].slice(-20);
+      screen.publications = [...(screen.publications ?? []), publication].filter(p => Date.parse(p.created_at) > Date.now() - IMAGE_GRACE_MS);
       screen.publication = publication; screen.revision += 1; screen.updated_at = now();
       return { committed: true, id: screen.id, revision: screen.revision, publication, physical_refresh_verified: false };
     });
@@ -143,7 +190,7 @@ export async function handleAPI(request: Request, path: string[]) {
       const { state } = await load();
       if (path[0] === 'screens' && path.length === 1) return json({ screens: await Promise.all(Object.values(state.screens).map(present)) });
       if (path[0] === 'screens' && path.length === 2 && state.screens[path[1]]) return json(await present(state.screens[path[1]]));
-      if (path[0] === 'receipts' && state.receipts[path[1]]) return json(state.receipts[path[1]].result);
+      if (path[0] === 'receipts') { pruneHistory(state, Date.now()); if (state.receipts[path[1]]) return json(state.receipts[path[1]].result); }
       if (path[0] === 'assets' && path.length === 3) {
         const screen = state.screens[path[1]];
         const key = path[2] === 'scene' ? screen?.scene?.key : path[2] === 'reference' ? screen?.scene?.reference_key : path[2] === 'image' ? screen?.publication?.key : undefined;
@@ -157,7 +204,9 @@ export async function handleAPI(request: Request, path: string[]) {
     if (!request.headers.get('content-type')?.startsWith('application/json')) return json({ error: 'Use application/json' }, 415);
     if (Number(request.headers.get('content-length') ?? 0) > 160000) throw new Problem(413, 'Request too large');
     const body = await request.text(); if (body.length > 160000) throw new Problem(413, 'Request too large');
-    return json(await write(path[0], JSON.parse(body)));
+    const raw = JSON.parse(body);
+    if (['save_screen', 'save_scene', 'publish_screen'].includes(path[0])) await maintainStorage();
+    return json(await write(path[0], raw));
   } catch (error) {
     if (error instanceof Problem) return json({ error: error.message }, error.status);
     if (error instanceof z.ZodError || error instanceof SyntaxError) return json({ error: 'Invalid request', details: error instanceof z.ZodError ? error.issues : undefined }, 400);
