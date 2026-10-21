@@ -48,3 +48,13 @@ The renderer uses only local files and bundled fonts. It neither reads connected
 - Retry an uncertain publication with the same JSON and request UUID or read its receipt. A revision conflict means reread the screen before proceeding.
 - Continue other screens if one fails. Don't turn one weather outage into a household art strike.
 - The Site retains the latest image even when the computer is offline. It cannot add a fresh “offline” warning to a sleeping e-ink device without a new render.
+
+## Storage retention
+
+Idempotency receipts expire after 24 hours. Retry uncertain writes with their original UUID and payload within that window; read the receipt first. After expiry, reread the screen and use a new request UUID with its current revision. Do not replay an expired screen-creation request.
+
+Each write prunes expired receipts and performs a bounded image-cleanup page. The current publication, scene and pinned daily reference remain protected, including disconnected screens. Superseded publications and other unreferenced images have a one-hour download/upload grace period, then are deleted from R2. Other object namespaces remain untouched. A short registry lease protects concurrent commits during deletion; a temporary 503 requires an identical retry.
+
+To clear an existing backlog, POST `/api/maintain_storage` with a new UUID `request_id`, then repeat with a new UUID while `cleanup_pending` is true. This authenticated operation preserves screen preferences and revisions. It uses the same CAS path as updates; never edit D1 directly. Old untimestamped receipts use the next dated publication as a conservative age bound; the undated tail expires within one migration day.
+
+Run storage regressions with `cd site && node --test tests/storage-retention.test.mjs` after installing dependencies.
