@@ -19,6 +19,8 @@ You need:
 
 No Google Calendar connection is needed for the first weather screen. Connect calendars or other sources only when you want that content.
 
+For calendar screens, the [calendar-reading workflow](docs/updater.md#reading-and-normalizing-calendar-events) covers complete source reads, midnight-to-midnight all-day ranges, exclusive end dates and refreshing verified content when an individual entry needs clarification.
+
 ## What happens during setup
 
 1. Codex reads these instructions and creates **your own Site**. It generates a random token and sets it as the Site's secret `SITE_TOKEN` environment variable.
