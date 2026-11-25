@@ -55,7 +55,7 @@ The Site never receives your Google password or signs in to weather services. Co
 | `site/` | Site source: screen management, authenticated API, firmware routes, D1 registry, R2 images |
 | `updater/` | Portable Python image renderer, HTTP client, fonts and tests |
 | `docs/setup.md` | Codex's complete first-run playbook |
-| `docs/updater.md` | Local recurring-update procedure and prompt template |
+| `docs/updater.md` | Local recurring-update procedure, three-day run history and prompt template |
 | `docs/api.md` | API contract, revisions, retries and image requirements |
 | `docs/development.md` | Local development, checks and publication workflow |
 | `website/` | Public getting-started page, published through GitHub Pages |

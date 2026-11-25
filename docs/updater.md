@@ -58,3 +58,9 @@ Each write prunes expired receipts and performs a bounded image-cleanup page. Th
 To clear an existing backlog, POST `/api/maintain_storage` with a new UUID `request_id`, then repeat with a new UUID while `cleanup_pending` is true. This authenticated operation preserves screen preferences and revisions. It uses the same CAS path as updates; never edit D1 directly. Old untimestamped receipts use the next dated publication as a conservative age bound; the undated tail expires within one migration day.
 
 Run storage regressions with `cd site && node --test tests/storage-retention.test.mjs` after installing dependencies.
+
+## Local run history
+
+After recording a verified refresh, run `python updater/prune_runs.py --apply` as the final step of the existing desktop task. Omit `--apply` to preview. The rolling window covers 72 hours in UTC. The cleaner also protects the last verified run per screen, the latest summary's run, unfinished or partially verified runs, and requests without matching committed receipts. Calendar verification and owner confirmation files stay at their original paths.
+
+Use one timestamped directory per refresh under `.runtime/runs/YYYY-MM-DDTHHMMSSZ/`. Save each screen's write payload as `<action>-request.json` and its committed receipt as `<action>-receipt.json` in its screen-ID directory. Keep reusable calendar evidence in `calendar-browser-verification.json` and owner confirmations in `owner-confirmations.json`, or in durable per-screen state outside the runs directory. Write the final `run-result.json` after readback, with the directory name in `run`, a `screens` list of IDs and verification flags, and an explicit `uncertain_site_requests` list. Use `all_publications_verified` for the status only when every screen is verified.

@@ -18,3 +18,4 @@ Read README.md, then docs/setup.md when a user asks to set up their own device f
 - The Site source is in site/. Local .openai/hosting.json, .dev.vars, connection files and all personal source data/images remain ignored. Use scripts/prepare-site.mjs for an isolated publishing checkout; never commit a real deployment ID into the reusable template.
 - Preserve legacy/macos as historical source. The live native app may still be serving a household during migration; don't quit it or reconfigure devices until the new route is physically verified.
 - Keep README and served agent guide aligned with implemented behavior and clear about unverified capabilities.
+- After recording a verified desktop refresh, finish the existing task with the local run-history cleanup command in docs/updater.md.

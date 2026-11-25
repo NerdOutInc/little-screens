@@ -39,6 +39,7 @@ Desktop workflow:
 The weather-starter-v1 template requires only profile and snapshot.weather, with no scene or calendars. Use it for first setup.
 5. Inspect IMAGE.png for readable titles/times, useful notes, correct date/data, clear text surfaces, and mascot continuity. Publish with current revision, source timestamps, and unique request ID. Verify by reading the screen back and checking the returned image hash.
 6. Continue other screens when one fails. Report only failures, access prompts, needed user action, or material changes to the setup. An image_sent timestamp means the server prepared a response; ask the owner before claiming physical-device verification.
+7. After recording a verified desktop refresh, follow the local run-history cleanup step in docs/updater.md on the updater computer.
 
 Physical setup: publish an initial image first. Make the Site public in Sites sharing controls (the owner does this); the application token checks remain in place. Copy the screen's setup_url exactly with no trailing slash. Enter it as Custom Server in the TRMNL Wi-Fi setup portal. Firmware appends /api/setup, /api/display and /api/log. Logical IDs are independent of hardware MAC addresses; multiple devices may use one ID to mirror content. The firmware's refresh_rate controls its next sleep, not the Codex generation schedule. A brief rear-button press requests a check. Keep the prior server until the new screen is physically confirmed.
 
